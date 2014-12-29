@@ -22,11 +22,17 @@ THE SOFTWARE.
 
 import sublime
 import sublime_plugin
-import urllib2
 import re
 import base64
 import json
+import socket
+import urllib.request
+import urllib.parse
+import urllib.error
 
+
+def plugin_loaded():
+    print("Loaded ServiceNowBuild")
 
 class ServiceNowBuildListener(sublime_plugin.EventListener):
     def on_pre_save(self, view):
@@ -48,31 +54,25 @@ class ServiceNowBuildCommand(sublime_plugin.TextCommand):
             return
 
         # Get the field name from the comment in the file
-        fieldname = get_fieldname(self.text)           
-
+        fieldname = get_fieldname(self.text)    
+               
         try:
-            data = json.dumps({fieldname: self.text})            
-            url = self.url + "&sysparm_action=update&JSON"
+            data = json.dumps({fieldname: self.text})             
+            url = self.url + "&sysparm_action=update&JSONv2"
             url = url.replace("sys_id", "sysparm_query=sys_id")
             result = http_call(authentication, url, data)
-
-            #Check if success. If error, try with JSONv2 URL
+            #Check if success. (removed jsonv1 support)
             if "\"__status\":\"success\"" not in result:
-                url = self.url + "&sysparm_action=update&JSONv2"
-                url = url.replace("sys_id", "sysparm_query=sys_id")
-                result = http_call(authentication, url, data)
-
-            if "\"__status\":\"success\"" not in result:
-                print "SN-Sublime - File Upload Failed!!"
-                print "URL used: " + url    
+                print("SN-Sublime - File Upload Failed!!")
+                print("URL used: " + url)
             else:
-                print "SN-Sublime - File Successully Uploaded"
+                print("SN-Sublime - File Successully Uploaded")
             return
-        except (urllib2.HTTPError) as (e):
-            err = 'SN-Sublime - HTTP Error: %s' % (str(e.code))
-        except (urllib2.URLError) as (e):
+        except (urllib.error.HTTPError) as err:
+            err = 'SN-Sublime - HTTP Error: %s' % (str(err.code))
+        except (urllib.error.URLError) as err:
             err = 'SN-Sublime - URL Error: %s' % (str(e))
-        print err
+        print(err)
 
         return
         
@@ -89,9 +89,9 @@ class ServiceNowSync(sublime_plugin.TextCommand):
            return
 
         try:
-            url = self.url + "&sysparm_action=get&JSON"
+            url = self.url + "&sysparm_action=get&JSONv2"
             url = url.replace("sys_id", "sysparm_sys_id")
-            response_data = json.loads(http_call(authentication,url,{}))
+            response_data = json.loads(http_call(authentication,url,''))
             serverText = response_data['records'][0]['script']
 
             if self.text != serverText and sublime.ok_cancel_dialog("File has been updated on server. \nPress OK to Reload."):
@@ -100,22 +100,25 @@ class ServiceNowSync(sublime_plugin.TextCommand):
                 self.view.insert(edit,0,serverText)
                 self.view.end_edit(edit)
             return
-        except (urllib2.HTTPError) as (e):
-            err = 'SN-Sublime - HTTP Error %s' % (str(e.code))
-        except (urllib2.URLError) as (e):
-            err = 'SN-Sublime - URL Error %s' % (str(e.code))
-        print err
+        except (urllib.error.HTTPError) as err:
+            err = 'SN-Sublime - HTTP Error %s' % (str(err.code))
+        except (urllib.error.URLError) as err:
+            err = 'SN-Sublime - URL Error %s' % (str(err.code))
+        print(err)
         
 
 def http_call(authentication, url, data):
     timeout = 5
-    request = urllib2.Request(url, data)
+    socket.setdefaulttimeout(timeout)
+
+    data = data.encode('utf-8') # data should be bytes
+    request = urllib.request.Request(url, data)
     request.add_header("Authorization", authentication)
     request.add_header("Content-type", "application/json")
-    http_file = urllib2.urlopen(request, timeout=timeout)
+    http_file = urllib.request.urlopen(request)
     result = http_file.read()
 
-    return result
+    return result.decode('utf-8')
 
 
 def get_authentication(sublimeClass, edit):
@@ -144,22 +147,22 @@ def get_authentication(sublimeClass, edit):
     if authentication:
         return "Basic " + authentication
     else:
-        print "SN-Sublime - Auth Error. No authentication header tag found"        
+        print("SN-Sublime - Auth Error. No authentication header tag found")       
         return False
 
 
 def store_authentication(sublimeClass, edit, authentication, instance):
-    base64string = base64.encodestring(authentication).replace('\n', '')
+    base64string = base64.b64encode(bytes(authentication, 'utf-8'))
     reg = sublime.Region(0, sublimeClass.view.size())
     text = sublimeClass.view.substr(reg)
     sublimeClass.text = text.replace(authentication, "STORED")
     sublimeClass.view.replace(edit, reg, sublimeClass.text)
 
     settings = sublime.load_settings('SN.sublime-settings')
-    settings.set(instance, base64string)
+    settings.set(instance, base64string.decode('utf-8'))
     settings = sublime.save_settings('SN.sublime-settings')
 
-    return base64string
+    return base64string.decode('utf-8')
 
 def get_fieldname(text):
     fieldname_match = re.search(r"__fieldName[\W=]*([a-zA-Z0-9_]*)", text)
@@ -174,7 +177,7 @@ def get_url(text):
     if url_match:
         return url_match.groups()[0]
     else:
-        print "SN-Sublime - Error. Not a ServiceNow File"
+        print("SN-Sublime - Error. Not a ServiceNow File")
         return False
 
 
@@ -183,7 +186,7 @@ def get_instance(url):
     if instance_match:
         return instance_match.groups()[0]
     else:
-        print "SN-Sublime - Error. No instance info found"        
+        print("SN-Sublime - Error. No instance info found")        
         return False
 
 
