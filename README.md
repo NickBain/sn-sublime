@@ -3,7 +3,7 @@ sn-sublime v3
 
 Sublime v3 Integration with ServiceNow
 
-*This version is compatible with Sublime v3 only. For Sublime v2 support use [this version](https://github.com/fruition-partners/sn-sublime) *
+**This version is compatible with Sublime v3 only. For Sublime v2 support use [this version](https://github.com/fruition-partners/sn-sublime)**
 
 Setting an instance
 ==========
