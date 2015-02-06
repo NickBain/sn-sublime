@@ -1,9 +1,9 @@
-sn-sublime v3
+sn-sublime
 ==========
 
-Sublime v3 Integration with ServiceNow
+Sublime Integration with ServiceNow.
 
-**This version is compatible with Sublime v3 only. For Sublime v2 support use [this version](https://github.com/fruition-partners/sn-sublime)**
+Supports Sublime v2 and Sublime v3
 
 Setting an instance
 ==========
