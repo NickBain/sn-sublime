@@ -3,7 +3,7 @@ sn-sublime
 
 Sublime Integration with ServiceNow.
 
-Supports Sublime v2 and Sublime v3
+Supports Sublime v2 and Sublime v3.
 
 Setting an instance
 ==========
